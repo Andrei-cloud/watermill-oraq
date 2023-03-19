@@ -91,6 +91,7 @@ func newPubSub(
 			Payload:        "",
 			Transformation: "",
 			QueueWaitTime:  30 * time.Second,
+			Marshaler:      aq.JSONMarshaler{},
 		},
 		logger,
 	)
@@ -107,6 +108,7 @@ func newPubSub(
 			QueueWaitTime:  30 * time.Second,
 			BatchSize:      1,
 			ResendInterval: 1,
+			Unmarshaler:    aq.JSONMarshaler{},
 		},
 		logger,
 	)

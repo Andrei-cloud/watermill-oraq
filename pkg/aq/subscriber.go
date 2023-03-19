@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"sync"
 	"text/template"
@@ -53,6 +52,8 @@ type SubscriberConfig struct {
 	// ResendInterval is the time to wait before resending a nacked message.
 	// Must be non-negative. Defaults to 1s.
 	ResendInterval time.Duration
+
+	Unmarshaler Unmarshaler
 }
 
 func (c SubscriberConfig) setDefaults() {
@@ -196,6 +197,8 @@ func (s *Subscriber) dequeue(
 	out chan *message.Message,
 	logger watermill.LoggerAdapter,
 ) error {
+	var wmessage *message.Message
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return errors.Join(err, errors.New("could not begin tx for dequeueing message"))
@@ -234,19 +237,21 @@ func (s *Subscriber) dequeue(
 	})
 
 	if n > 0 {
-		wm := message.Message{}
-		if err := json.Unmarshal(msgs[0].Raw, &wm); err != nil {
-			logger.Error("could not unmarshal message fields", err, watermill.LogFields{
-				"msg_uuid": msgs[0].Correlation,
-			})
+		if s.config.Unmarshaler != nil {
+			wmessage, err = s.config.Unmarshaler.Unmarshal(msgs[0].Raw)
+			if err != nil {
+				return errors.Join(err, errors.New("could not marshal message"))
+			}
+		} else {
+			wmessage = message.NewMessage(watermill.NewUUID(), msgs[0].Raw)
+			wmessage.Metadata.Set("CorrID", msgs[0].Correlation)
 		}
 
-		wmessage := message.NewMessage(wm.UUID, wm.Payload)
-		wmessage.Metadata = wm.Metadata
 		logger = logger.With(watermill.LogFields{
 			"msg_uuid": wmessage.UUID,
 		})
 		logger.Trace("Received message", nil)
+
 		acked := s.sendMessage(ctx, wmessage, out, logger)
 		if !acked {
 			return errors.New("discarding message, not acked")

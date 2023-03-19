@@ -1,10 +1,8 @@
 package aq
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -26,6 +24,7 @@ type PublisherConfig struct {
 	Transformation string        // Payload oracle transformation name
 	QueueWaitTime  time.Duration // Wait time for the queue to return data
 
+	Marshaler Marshaler
 }
 
 func (c PublisherConfig) validate() error {
@@ -135,23 +134,27 @@ func (p *Publisher) enqueue(
 	logger watermill.LoggerAdapter,
 	messages ...*message.Message,
 ) error {
+	var bytes []byte
 	if p.closed {
 		return ErrPublisherClosed
 	}
 
 	ora_message := make([]godror.Message, 1)
 
-	buf := bytes.Buffer{}
-	encoder := json.NewEncoder(&buf)
 	for _, msg := range messages {
-		buf.Reset()
-
-		if err := encoder.Encode(msg); err != nil {
-			return errors.Join(err, errors.New("could not encode message"))
+		var err error
+		if p.config.Marshaler != nil {
+			bytes, err = p.config.Marshaler.Marshal(msg)
+			if err != nil {
+				return errors.Join(err, errors.New("could not marshal message"))
+			}
+		} else {
+			bytes = msg.Payload
 		}
+
 		ora_message[0] = godror.Message{
 			Correlation: msg.UUID,
-			Raw:         buf.Bytes(),
+			Raw:         bytes,
 			Expiration:  24 * time.Hour,
 		}
 
