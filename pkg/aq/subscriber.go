@@ -238,11 +238,17 @@ func (s *Subscriber) dequeue(
 
 	if n > 0 {
 		if s.config.Unmarshaler != nil {
+			logger.Trace("Unmarshaling message", watermill.LogFields{
+				"payload": string(msgs[0].Raw),
+			})
 			wmessage, err = s.config.Unmarshaler.Unmarshal(msgs[0].Raw)
 			if err != nil {
 				return errors.Join(err, errors.New("could not marshal message"))
 			}
 		} else {
+			logger.Trace("processing as raw message", watermill.LogFields{
+				"payload": string(msgs[0].Raw),
+			})
 			wmessage = message.NewMessage(watermill.NewUUID(), msgs[0].Raw)
 			wmessage.Metadata.Set("CorrID", msgs[0].Correlation)
 		}
