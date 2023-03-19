@@ -250,7 +250,7 @@ func (s *Subscriber) dequeue(
 				"payload": string(msgs[0].Raw),
 			})
 			wmessage = message.NewMessage(watermill.NewUUID(), msgs[0].Raw)
-			wmessage.Metadata.Set("CorrID", msgs[0].Correlation)
+			wmessage.Metadata.Set("OriginID", string(msgs[0].MsgID[:]))
 		}
 
 		logger = logger.With(watermill.LogFields{
