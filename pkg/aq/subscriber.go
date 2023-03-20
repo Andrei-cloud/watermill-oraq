@@ -280,7 +280,7 @@ func (s *Subscriber) sendMessage(
 	out chan *message.Message,
 	logger watermill.LoggerAdapter,
 ) (acked bool) {
-	msgCtx, cancel := context.WithCancel(ctx)
+	msgCtx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	msg.SetContext(msgCtx)
 	defer cancel()
 
