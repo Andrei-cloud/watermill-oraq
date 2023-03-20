@@ -246,11 +246,12 @@ func (s *Subscriber) dequeue(
 				return errors.Join(err, errors.New("could not marshal message"))
 			}
 		} else {
-			logger.Trace("processing as raw message", watermill.LogFields{
-				"payload": string(msgs[0].Raw),
-			})
 			wmessage = message.NewMessage(watermill.NewUUID(), msgs[0].Raw)
 			wmessage.Metadata.Set("OriginID", string(msgs[0].MsgID[:]))
+			logger.Trace("processing as raw message", watermill.LogFields{
+				"payload":  string(msgs[0].Raw),
+				"msg_uuid": wmessage.UUID,
+			})
 		}
 
 		logger = logger.With(watermill.LogFields{
