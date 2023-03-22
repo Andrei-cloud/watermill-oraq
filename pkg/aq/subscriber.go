@@ -208,7 +208,7 @@ func (s *Subscriber) dequeue(
 		godror.WithDeqOptions(godror.DeqOptions{
 			Consumer:   s.config.QueueConsumer,
 			Mode:       godror.DeqRemove,
-			Visibility: godror.VisibleImmediate,
+			Visibility: godror.VisibleOnCommit,
 			Navigation: godror.NavNext,
 			Wait:       s.config.QueueWaitTime,
 		}))
