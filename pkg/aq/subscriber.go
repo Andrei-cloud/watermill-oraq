@@ -52,7 +52,7 @@ type SubscriberConfig struct {
 	Unmarshaler Unmarshaler
 }
 
-func (c SubscriberConfig) setDefaults() {
+func (c *SubscriberConfig) setDefaults() {
 
 	if c.Timeout == 0 {
 		c.Timeout = 5 * time.Second
@@ -242,7 +242,7 @@ func (s *Subscriber) dequeue(
 		} else {
 			wmessage = message.NewMessage(watermill.NewUUID(), msgs[0].Raw)
 			wmessage.Metadata.Set("OriginID", string(msgs[0].MsgID[:]))
-			logger.Trace("processing as raw message", watermill.LogFields{
+			logger.Trace("Processing as raw message", watermill.LogFields{
 				"payload":     string(msgs[0].Raw),
 				"attempts_no": msgs[0].NumAttempts,
 				"msg_uuid":    wmessage.UUID,
