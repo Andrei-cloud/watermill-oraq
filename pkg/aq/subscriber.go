@@ -49,17 +49,11 @@ type SubscriberConfig struct {
 
 	Timeout time.Duration // Timeout for the sql query operation
 
-	// ResendInterval is the time to wait before resending a nacked message.
-	// Must be non-negative. Defaults to 1s.
-	ResendInterval time.Duration
-
 	Unmarshaler Unmarshaler
 }
 
 func (c SubscriberConfig) setDefaults() {
-	if c.ResendInterval < 0 {
-		c.ResendInterval = time.Second
-	}
+
 	if c.Timeout == 0 {
 		c.Timeout = 5 * time.Second
 	}
@@ -261,7 +255,14 @@ func (s *Subscriber) dequeue(
 
 		acked := s.sendMessage(ctx, wmessage, out, logger)
 		if !acked {
-			return errors.New("discarding message, not acked")
+			logger.Debug("message nacked, rolling back", watermill.LogFields{
+				"msg_uuid": wmessage.UUID,
+			})
+			err := tx.Rollback()
+			if err != nil && err != sql.ErrTxDone {
+				logger.Error("could not rollback tx for dequeueing message", err, nil)
+			}
+			return nil
 		}
 	}
 	err = tx.Commit()
@@ -284,7 +285,6 @@ func (s *Subscriber) sendMessage(
 	msg.SetContext(msgCtx)
 	defer cancel()
 
-ResendLoop:
 	for {
 
 		select {
@@ -305,16 +305,8 @@ ResendLoop:
 			return true
 
 		case <-msg.Nacked():
-			//message nacked, try resending
-			logger.Debug("Message nacked, resending", nil)
-			msg = msg.Copy()
-			msg.SetContext(msgCtx)
-
-			if s.config.ResendInterval != 0 {
-				time.Sleep(s.config.ResendInterval)
-			}
-
-			continue ResendLoop
+			logger.Debug("Message nacked, skipping", nil)
+			return false
 
 		case <-s.closing:
 			logger.Info("Discarding queued message, subscriber closing", nil)
