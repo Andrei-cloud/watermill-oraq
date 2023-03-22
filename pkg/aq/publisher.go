@@ -173,7 +173,7 @@ func (p *Publisher) enqueue(
 			q, err := godror.NewQueue(ctx, tx, topic, p.config.Payload,
 				godror.WithEnqOptions(godror.EnqOptions{
 					Transformation: p.config.Transformation,
-					Visibility:     godror.VisibleOnCommit,
+					Visibility:     godror.VisibleImmediate,
 					DeliveryMode:   godror.DeliverPersistent,
 				}))
 			if err != nil {
