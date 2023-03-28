@@ -326,7 +326,7 @@ func (s *Subscriber) SubscribeInitialize(topic string) error {
 	}
 
 	if topic == "" {
-		return errors.New("topic is empty")
+		return errors.New("topic cannot be empty")
 	}
 
 	ctx := context.Background()
