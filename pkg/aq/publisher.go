@@ -19,10 +19,9 @@ var (
 type PublisherConfig struct {
 	// Oracle Advanced queue configuration
 
-	QueueConsumer  string        // Name of the queue subscriber/consumer
-	Payload        string        // Payload type
-	Transformation string        // Payload oracle transformation name
-	QueueWaitTime  time.Duration // Wait time for the queue to return data
+	QueueConsumer  string // Name of the queue subscriber/consumer
+	Payload        string // Payload type
+	Transformation string // Payload oracle transformation name
 
 	Marshaler Marshaler
 }
@@ -30,9 +29,6 @@ type PublisherConfig struct {
 func (c PublisherConfig) validate() error {
 	if c.QueueConsumer == "" {
 		return errors.New("queue consumer is empty")
-	}
-	if c.QueueWaitTime <= 0 {
-		return errors.New("queue wait time must be greater than 0 seconds")
 	}
 	return nil
 }
@@ -139,9 +135,9 @@ func (p *Publisher) enqueue(
 		return ErrPublisherClosed
 	}
 
-	ora_message := make([]godror.Message, 1)
+	ora_message := make([]godror.Message, len(messages))
 
-	for _, msg := range messages {
+	for i, msg := range messages {
 		var err error
 		if p.config.Marshaler != nil {
 			bytes, err = p.config.Marshaler.Marshal(msg)
@@ -152,7 +148,7 @@ func (p *Publisher) enqueue(
 			bytes = msg.Payload
 		}
 
-		ora_message[0] = godror.Message{
+		ora_message[i] = godror.Message{
 			Correlation: msg.UUID,
 			Raw:         bytes,
 			Expiration:  24 * time.Hour,
@@ -188,7 +184,6 @@ func (p *Publisher) enqueue(
 			if err != nil && err != sql.ErrTxDone {
 				logger.Error("could not commit tx for dequeueing message", err, nil)
 			}
-			q.Close()
 		}
 	}
 

@@ -83,6 +83,7 @@ type Subscriber struct {
 
 	subscribeWg *sync.WaitGroup
 	closing     chan struct{}
+	closedMutex sync.Mutex
 	closed      bool
 
 	logger watermill.LoggerAdapter
@@ -127,6 +128,7 @@ func (s *Subscriber) Subscribe(ctx context.Context, topic string) (<-chan *messa
 
 	s.subscribeWg.Add(1)
 	go func() {
+		defer s.subscribeWg.Done()
 		s.consume(ctx, topic, out)
 		close(out)
 		cancel()
@@ -136,11 +138,14 @@ func (s *Subscriber) Subscribe(ctx context.Context, topic string) (<-chan *messa
 }
 
 func (s *Subscriber) Close() error {
+	s.closedMutex.Lock()
 	if s.closed {
+		s.closedMutex.Unlock()
 		return nil
 	}
 
 	s.closed = true
+	s.closedMutex.Unlock()
 
 	close(s.closing)
 	s.subscribeWg.Wait()

@@ -18,6 +18,7 @@ var (
 	logger = watermill.NewStdLogger(true, false)
 )
 
+// todo: move hardcoded credentials to env variables
 const (
 	ORA_USER = "TCTDBS"
 	ORA_PASS = "TCTDBS"
@@ -53,9 +54,6 @@ func newOracle(tns, user, pass string) (*sql.DB, error) {
 	params.StandaloneConnection = false
 	params.NoTZCheck = true
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	logger.Info("attempting to connect", watermill.LogFields{
 		"tns": params.ConnectString,
 	})
@@ -71,9 +69,12 @@ func newOracle(tns, user, pass string) (*sql.DB, error) {
 	// Set a maximum open connection limit of 100
 	db.SetMaxOpenConns(100)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	if err := db.PingContext(ctx); err != nil {
+		cancel()
 		return nil, err
 	}
+	defer cancel()
 	return db, nil
 }
 
@@ -90,7 +91,6 @@ func newPubSub(
 			QueueConsumer:  consumerGroup,
 			Payload:        "",
 			Transformation: "",
-			QueueWaitTime:  30 * time.Second,
 			Marshaler:      aq.JSONMarshaler{},
 		},
 		logger,
@@ -105,7 +105,6 @@ func newPubSub(
 			QueueConsumer:  consumerGroup,
 			Payload:        "",
 			Transformation: "",
-			QueueWaitTime:  30 * time.Second,
 			BatchSize:      1,
 			Unmarshaler:    aq.JSONMarshaler{},
 		},
